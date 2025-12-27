@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pipeline de Procesamiento de Videos</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+	body {
+	  background-color: #f8f9fa;
+	  font-family: 'Inter', sans-serif;
+	}
+
+	h1, h4, h5 {
+	  font-weight: 600;
+	}
+
+	/* Pasos del pipeline */
+	.pipeline-step {
+	  display: inline-block;
+	  padding: 10px 20px;
+	  margin: 5px;
+	  color: white;
+	  font-weight: 500;
+	  min-width: 180px;
+	  text-align: center;
+	  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+	  transition: all 0.3s ease-in-out;
+	  margin-left: 4%;
+	}
+	.pipeline-step.inactive {
+	  background-color: #b0b0b0;
+	  opacity: 0.6;
+	}
+	.pipeline-step.active {
+	  background: linear-gradient(135deg, #007bff, #00bfff);
+	  transform: scale(1.05);
+	  box-shadow: 0 4px 10px rgba(0,123,255,0.4);
+	}
+	.pipeline-step.completed {
+	  background: linear-gradient(135deg, #28a745, #5cd65c);
+	}
+	.pipeline-step.completed::after {
+	  content: " ✓";
+	  font-weight: bold;
+	}
+
+	/* Tabla */
+	.table th {
+	  background-color: #343a40;
+	  color: white;
+	}
+
+	/* Estados */
+	.status-success {
+	  color: #28a745;
+	  font-weight: bold;
+	}
+	.status-error {
+	  color: #dc3545;
+	  font-weight: bold;
+	}
+
+	/* Botón custom de archivo */
+	.custom-file-upload {
+	  background: linear-gradient(135deg, #4e8ef7, #1c5adf);
+	  color: white;
+	  padding: 10px 16px;
+	  border-radius: 8px;
+	  cursor: pointer;
+	  font-weight: bold;
+	  transition: 0.3s;
+	  display: inline-block;
+	  margin-right: 8px;
+	}
+	.custom-file-upload:hover {
+	  background: linear-gradient(135deg, #1c5adf, #4e8ef7);
+	}
+
+	/* Botón de subir */
+	#upload-btn {
+	  background: #00b894;
+	  border: none;
+	  border-radius: 8px;
+	  padding: 10px 16px;
+	  color: #fff;
+	  font-weight: 500;
+	  transition: background 0.3s;
+	}
+	#upload-btn:hover {
+	  background: #019874;
+	}
+
+	/* Spinner */
+	.spinner {
+	  width: 18px;
+	  height: 18px;
+	  border: 3px solid #f3f3f3;
+	  border-top: 3px solid #4e8ef7;
+	  border-radius: 50%;
+	  animation: spin 0.7s linear infinite;
+	  display: inline-block;
+	  vertical-align: middle;
+	  margin-right: 6px;
+	}
+	@keyframes spin {
+	  to { transform: rotate(360deg); }
+	}
+
+	/* Barra de progreso personalizada */
+	.progress-bar {
+	  background: #e9ecef;
+	  border-radius: 4px;
+	  overflow: hidden;
+	  display: inline-block;
+	  vertical-align: middle;
+	  width: 150px;
+	  margin-left: 8px;
+	}
+	.progress-bar div {
+	  height: 6px;
+	  background: linear-gradient(135deg, #007bff, #00bfff);
+	  width: 0%;
+	  transition: width 0.3s ease;
+	}
+
+	/* Icono de estado */
+	#statusIcon {
+	  transition: transform 0.3s ease;
+	}
+	#statusIcon:hover {
+	  transform: rotate(15deg) scale(1.2);
+	}
+
+	/* Línea del log */
+	#logLine {
+	  font-family: monospace;
+	  font-size: 0.95em;
+	  color: #333;
+	}
+	
+	#estado-procesamiento td {
+	  font-weight: 500;
+	  color: #343a40;
+	}
+  </style>
+</head>
+<body>
+<div class="container mt-5">
+	<h1 class="text-center mb-4" style="font-weight:700; color:#343a40;">
+	  🎬 Pipeline de Procesamiento de Videos
+	</h1>
+
+    <!-- Entrada de carpeta/ruta -->
+	<div class="card shadow-sm mb-4">
+	  <div class="card-body">
+		<h5 class="card-title">📂 Procesar desde carpeta</h5>
+		<div class="form-group">
+		  <label for="folderPath">Ruta de carpeta o archivo:</label>
+		  <input type="text" id="folderPath" class="form-control" placeholder="/ruta/a/carpeta/o/archivo"/>
+		</div>
+		<button id="startProcessing" class="btn btn-outline-primary">Iniciar Procesamiento</button>
+	  </div>
+	</div>
+
+  <!-- Formulario de subida directa -->
+	<div class="card shadow-sm mb-4">
+	  <div class="card-body">
+		<h5 class="card-title">📤 Subir archivo de video</h5>
+		<form id="upload-form">
+		  <label for="video-input" class="custom-file-upload">
+			<i class="fas fa-file-upload"></i> Elegir archivo
+		  </label>
+		  <input type="file" id="video-input" name="video" accept=".mkv,.mp4,.avi,.mov,.flv,.wmv" required style="display:none" />
+		  <button type="submit" id="upload-btn" class="btn btn-success ml-2">Subir</button>
+		</form>
+		<div id="upload-status" class="mt-3" style="display:none;">
+		  <span class="spinner"></span>
+		  <span id="status-text">Preparando subida…</span>
+		  <div class="progress-bar"><div></div></div>
+		  <span id="upload-percent">0%</span>
+		</div>
+	  </div>
+	</div>
+
+	<div class="card shadow-sm mb-4">
+	  <div class="card-body">
+		<h5 class="card-title">🛠️ Estado del Pipeline</h5>
+		<div id="pipelineSteps" class="d-flex flex-wrap">
+		  <div id="step1" class="pipeline-step inactive">Reparar Archivo</div>
+		  <div id="step2" class="pipeline-step inactive">Reducir Tamaño</div>
+		  <div id="step3" class="pipeline-step inactive">Optimizar Video</div>
+		  <div id="step4" class="pipeline-step inactive">Validar Duración</div>
+		</div>
+	  </div>
+	</div>
+	
+	<div class="card shadow-sm mb-4" id="estado-procesamiento">
+	  <div class="card-body">
+		<div class="d-flex justify-content-between align-items-center">
+		  <h5 class="mb-0">📈 Estado de procesamiento</h5>
+		  <span id="statusIcon" style="font-size:1.5em;">🟢</span>
+		</div>
+		<p class="mt-2 mb-1"><strong>Archivo en proceso:</strong> <span id="currentFile">Ninguno</span></p>
+
+		<table class="table table-sm table-bordered text-center mt-3">
+		  <thead class="thead-light">
+			<tr>
+			  <th>Frames</th>
+			  <th>FPS</th>
+			  <th>Duración</th>
+			  <th>Bitrate</th>
+			  <th>Velocidad</th>
+			</tr>
+		  </thead>
+		  <tbody>
+			<tr>
+			  <td id="stat-frames">–</td>
+			  <td id="stat-fps">–</td>
+			  <td id="stat-time">–</td>
+			  <td id="stat-bitrate">–</td>
+			  <td id="stat-speed">–</td>
+			</tr>
+		  </tbody>
+		</table>
+		
+		<div class="mt-3">
+		  <h6 class="text-muted">🎬 Información del vídeo original</h6>
+			<table class="table table-sm table-striped table-bordered mt-2">
+			  <thead class="thead-light">
+				<tr><th>Campo</th><th>Valor</th></tr>
+			  </thead>
+			  <tbody>
+				<tr><td>Nombre</td><td id="info-name">–</td></tr>
+				<tr><td>Duración</td><td id="info-duration">–</td></tr>
+				<tr><td>Resolución</td><td id="info-resolution">–</td></tr>
+				<tr><td>Formato</td><td id="info-format">–</td></tr>
+				<tr><td>Codec vídeo</td><td id="info-vcodec">–</td></tr>
+				<tr><td>Codec audio</td><td id="info-acodec">–</td></tr>
+				<tr><td>Tamaño</td><td id="info-size">–</td></tr>
+			  </tbody>
+			</table>
+		</div>
+	  </div>
+	</div>
+
+	<div class="card shadow-sm mb-4">
+	  <div class="card-body">
+		<h5 class="card-title">📚 Historial de Procesamiento</h5>
+		<table class="table table-hover">
+		  <thead class="thead-dark">
+			<tr><th>Nombre del Video</th><th>Estado</th></tr>
+		  </thead>
+		  <tbody id="history"></tbody>
+		</table>
+	  </div>
+	</div>
+
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+<script>
+$(document).ready(function() {
+
+  // --- Lanzar procesamiento por ruta ---
+  $('#startProcessing').click(function() {
+    const folderPath = $('#folderPath').val().trim();
+    if (!folderPath) {
+      alert('Por favor, introduce una ruta válida.');
+      return;
+    }
+    $.ajax({
+      url: '/process',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ folder: folderPath }),
+      success: function(resp) {
+        console.log(resp.message);
+      },
+      error: function(xhr) {
+        console.error(xhr.responseJSON.error);
+      }
+    });
+  });
+  
+	$('#upload-form').on('submit', function(e) {
+	  e.preventDefault();
+	  if ($('#video-input')[0].files.length === 0) return alert('Selecciona un archivo primero');
+
+	  $('#upload-status').fadeIn();
+	  $('.progress-bar div').css('width', '0%');
+	  $('#upload-percent').text('0%');
+
+	  // Simular carga (sustituye por tu lógica AJAX real)
+	  let p = 0;
+	  const interval = setInterval(() => {
+		p += 10;
+		$('.progress-bar div').css('width', p + '%');
+		$('#upload-percent').text(p + '%');
+		if (p >= 100) {
+		  clearInterval(interval);
+		  setTimeout(() => $('#upload-status').fadeOut(), 500);
+		}
+	  }, 300);
+	});
+
+  // --- Subida de archivo ---
+  $('#upload-form').submit(function(e) {
+    e.preventDefault();
+    const fileInput = $('#video-input')[0];
+    if (!fileInput.files.length) {
+      alert('Selecciona un archivo primero.');
+      return;
+    }
+
+    $('#upload-status').removeClass('hidden');
+    $('#status-text').text('Subiendo...');
+    $('#upload-progress').val(0);
+    $('#upload-percent').text('0%');
+
+    const formData = new FormData();
+    formData.append('video', fileInput.files[0]);
+
+    $.ajax({
+      url: '/process-file',
+      type: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      xhr: function() {
+        let xhr = $.ajaxSettings.xhr();
+        if (xhr.upload) {
+          xhr.upload.addEventListener('progress', function(evt) {
+            if (evt.lengthComputable) {
+              let percent = Math.round((evt.loaded / evt.total) * 100);
+              $('#upload-progress').val(percent);
+              $('#upload-percent').text(percent + '%');
+            }
+          }, false);
+        }
+        return xhr;
+      },
+      success: function(resp) {
+        $('#status-text').text(resp.message);
+      },
+      error: function(xhr) {
+        $('#status-text').text('Error en la subida');
+        console.error(xhr.responseJSON.error);
+      }
+    });
+  });
+
+	function formatSecondsToHHMMSS(seconds) {
+	  seconds = parseInt(seconds, 10);
+	  const h = Math.floor(seconds / 3600);
+	  const m = Math.floor((seconds % 3600) / 60);
+	  const s = seconds % 60;
+
+	  return [h, m, s]
+		.map(unit => String(unit).padStart(2, '0'))
+		.join(':');
+	}
+
+	// --- Actualización de estado cada 2s ---
+	function updateStatus() {
+	$.getJSON('/status', function(data) {
+		try {
+			console.debug('Status response:', data);
+			// Actualiza el nombre del archivo (soporta varias variantes de servidor)
+			$('#currentFile').text(data.current_file || data.current_video || 'Ninguno');
+
+			// Extrae y muestra los valores en la tabla
+			const resumen = data.log_line || '';
+			const campos = {};
+
+			resumen.split('|').forEach(part => {
+				const pieces = part.split('=');
+				if (pieces.length < 2) return;
+				const key = pieces[0].trim();
+				const valueRaw = pieces.slice(1).join('=').trim();
+				if (key && valueRaw) campos[key.toLowerCase()] = valueRaw;
+			});
+
+			$('#stat-frames').text(campos['frames'] || '–');
+			$('#stat-fps').text(campos['fps'] || '–');
+			const timeVal = campos['time'] || '';
+			$('#stat-time').text(timeVal ? (timeVal.split('.')[0]) : '–');
+			$('#stat-bitrate').text(campos['bitrate'] || '–');
+			$('#stat-speed').text(campos['speed'] || '–');
+
+			const info = data.video_info || {};
+			const duracionSegundos = (info.duration && info.duration.split) ? info.duration.split(' ')[0] : null; // "9102 sec" → "9102"
+			const duracionFormateada = duracionSegundos ? formatSecondsToHHMMSS(duracionSegundos) : '–';
+			$('#info-duration').text(duracionFormateada);
+			$('#info-name').text(info.name || '–');
+			$('#info-resolution').text(info.resolution || '–');
+			$('#info-format').text(info.format || '–');
+			$('#info-vcodec').text(info.vcodec || '–');
+			$('#info-acodec').text(info.acodec || '–');
+			$('#info-size').text(info.size || '–');
+
+			// Actualiza los pasos e historial
+			updateSteps(data.current_step);
+			updateHistory(Array.isArray(data.history) ? data.history : []);
+		} catch (err) {
+			console.error('Error procesando /status:', err, data);
+		}
+
+		// Actualiza el icono de estado
+		updateStatusIcon(data.log_line);
+	  });
+	}
+
+  function updateSteps(step) {
+    $('.pipeline-step').removeClass('active completed').addClass('inactive');
+    for (let i = 1; i < step; i++) {
+      $('#step' + i).removeClass('inactive').addClass('completed');
+    }
+    if (step > 0 && step <= 4) {
+      $('#step' + step).removeClass('inactive').addClass('active');
+    }
+  }
+
+	function updateHistory(history) {
+	  $('#history').empty();
+	  history.forEach(item => {
+		try {
+		  if (!item) return;
+		  const name = Array.isArray(item) ? item[0] : item.name || item[0] || String(item);
+		  const message = Array.isArray(item) ? item[1] : item.message || item.status || String(item);
+		  const statusClass = (message && message.toString().startsWith('Error')) ? 'status-error' : 'status-success';
+		  $('#history').append(
+			`<tr><td>${name}</td><td class="${statusClass}">${message}</td></tr>`
+		  );
+		} catch (e) {
+		  console.warn('Historial: entrada con formato inesperado', item, e);
+		}
+	  });
+	}
+
+	function updateStatusIcon(logLine) {
+	  const iconElement = $('#statusIcon');
+	  const line = logLine || '';
+
+	  let icon = '🟡'; // Estado por defecto: en espera
+
+	  if (line.toLowerCase().includes('error') || line.toLowerCase().includes('failed')) {
+		icon = '🔴'; // Error detectado
+	  } else if (line.toLowerCase().includes('frame') || line.toLowerCase().includes('speed')) {
+		icon = '🟢'; // Procesando activamente
+	  } else if (line.toLowerCase().includes('completed') || line.toLowerCase().includes('done')) {
+		icon = '✅'; // Finalizado correctamente
+	  }
+
+	  iconElement.text(icon);
+	}
+
+  setInterval(updateStatus, 2000);
+});
+</script>
+</body> 
+</html>
+

@@ -114,7 +114,7 @@ Notas finales
 
 Archivo con dependencias: `requirements.txt`
 
-![Modo de uso](https://github.com/FelixMarin/video-optimizer/blob/master/USAGE.md)
+[Modo de uso](https://github.com/FelixMarin/video-optimizer/blob/master/USAGE.md)
 
 ## Ventana principal
 ![index.html](https://raw.githubusercontent.com/FelixMarin/video-optimizer/refs/heads/master/images/index.png)
@@ -123,4 +123,5 @@ Archivo con dependencias: `requirements.txt`
 ![Ejecución](https://raw.githubusercontent.com/FelixMarin/video-optimizer/refs/heads/master/images/ejecucion.png)
 
 ## Log del proceso
+
 ![Logs del proceso](https://raw.githubusercontent.com/FelixMarin/video-optimizer/refs/heads/master/images/ejecucion2.png)

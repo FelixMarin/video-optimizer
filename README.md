@@ -158,8 +158,6 @@ python -m optimize_video -h
 - El proceso está pensado para máquinas con NVENC disponible; si `ffmpeg` no soporta `h264_nvenc` los pasos fallarán.
 - El script borra el fichero original al finalizar correctamente: haz una copia si la necesitas.
 
-Si quieres opciones adicionales (`--dry-run`, selección de GPU, ajustes de bitrate/crf), puedo añadirlas.
-
 ### Ejemplos de uso
 
 A continuación hay ejemplos prácticos usando el módulo CLI ([optimize_video/__main__.py](optimize_video/__main__.py)).

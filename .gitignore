@@ -1,28 +1,54 @@
+# --- Carpetas del proyecto ---
 input/
 output/
 temp/
 
+# --- Entornos virtuales ---
 venv/
 env/
 .myenv/
+.myenv*/
 *.env
 *.venv
 
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
+*.pyd
+*.pdb
 
+# --- Archivos temporales ---
 *.log
 *.tmp
+*.temp
 *.swp
+*.swo
 
+# --- Archivos de sistema ---
 .DS_Store
 Thumbs.db
 
+# --- Herramientas de desarrollo ---
 .vscode/
 .idea/
+*.iml
 
+# --- Compilados / binarios ---
+*.so
+*.dll
+*.dylib
+*.exe
+*.bin
+
+# --- Archivos de pruebas ---
+.coverage
+htmlcov/
+pytest_cache/
+
+# --- Paquetes ---
+*.egg
+*.egg-info/
 dist/
 build/
-
-uploads/

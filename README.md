@@ -116,6 +116,83 @@ Archivo con dependencias: `requirements.txt`
 
 [Modo de uso](https://github.com/FelixMarin/video-optimizer/blob/master/USAGE.md)
 
+
+## CLI: optimizar vídeo desde la línea de comandos
+
+Se añadió un módulo mínimo para ejecutar la optimización sin levantar el servidor ni Ray.
+
+- **Archivo**: [optimize_video/__main__.py](optimize_video/__main__.py)
+- **Requisitos**: `ffmpeg` y `ffprobe` disponibles en `PATH` (la herramienta invoca ambos).
+
+**Comportamiento**: replica exactamente el pipeline de `server-gpu.py`:
+
+- Paso 1 — Reparar: copia los streams con `-c copy` -> `*_repaired.mkv`.
+- Paso 2 — Reducir: recodifica con `h264_nvenc`, `-b:v 2M`, escala `1280x720` -> `*_reduced.mkv`.
+- Paso 3 — Optimizar para streaming: `-cq 27 -b:v 800k -r 30 -movflags faststart` -> `*-optimized.mkv` (usa `-gpu 0`).
+- Paso 4 — Validar duración con `ffprobe`; si la diferencia es > 2s falla.
+- Paso 5 — Si todo correcto, elimina el original y los intermedios.
+
+**Uso**:
+
+```bash
+python -m optimize_video -i /ruta/al/video.mp4 -o /ruta/salida
+```
+
+- `-i/--input`: fichero de entrada (`.mp4`, `.mkv`, `.avi`, `.mov`, `.flv`, `.wmv`).
+- `-o/--output`: carpeta donde se crean los intermedios y el resultado final.
+
+**Salida**: el fichero final se guarda como `<basename>-optimized.mkv` dentro de la carpeta `-o`.
+
+**Códigos de salida**:
+- `0` — éxito
+- `1` — error en el procesamiento
+- `2` — fichero de entrada no encontrado o extensión inválida
+
+**Ayuda**:
+
+```bash
+python -m optimize_video -h
+```
+
+**Advertencias**:
+- El proceso está pensado para máquinas con NVENC disponible; si `ffmpeg` no soporta `h264_nvenc` los pasos fallarán.
+- El script borra el fichero original al finalizar correctamente: haz una copia si la necesitas.
+
+Si quieres opciones adicionales (`--dry-run`, selección de GPU, ajustes de bitrate/crf), puedo añadirlas.
+
+### Ejemplos de uso
+
+A continuación hay ejemplos prácticos usando el módulo CLI ([optimize_video/__main__.py](optimize_video/__main__.py)).
+
+- Optimización básica (usa valores por defecto):
+
+```bash
+python -m optimize_video -i /ruta/a/video.mp4 -o /ruta/salida
+```
+
+- Ajustar CQ (NVENC) y bitrate de optimización:
+
+```bash
+python -m optimize_video -i input.mkv -o outdir --cq 24 --opt-bitrate 1200k
+```
+
+- Cambiar bitrate en el paso de reducción y el CRF (si se usara libx264):
+
+```bash
+python -m optimize_video -i input.mov -o outdir --reduce-bitrate 3M --crf 20
+```
+
+- Seleccionar GPU diferente (p. ej. GPU 1):
+
+```bash
+python -m optimize_video -i input.mp4 -o outdir --gpu 1
+```
+
+Notas:
+- `--cq` controla la calidad para NVENC en el paso de optimización (valor más bajo = mejor calidad).
+- `--reduce-bitrate` y `--opt-bitrate` aceptan valores tipo `800k`, `2M`, `3M`, etc.
+- El parámetro `--crf` está disponible para escenarios donde se use `libx264` como alternativa; si su `ffmpeg` no soporta `h264_nvenc` el pipeline puede fallar según la configuración del sistema.
+
 ## Ventana principal
 ![index.html](https://raw.githubusercontent.com/FelixMarin/video-optimizer/refs/heads/master/images/index.png)
 

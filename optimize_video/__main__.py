@@ -53,7 +53,7 @@ def get_video_duration(video_path: str) -> float:
         return 0.0
 
 
-def process_video(video_path: str, output_dir: str) -> None:
+def process_video(video_path: str, output_dir: str, *, cq: int = 27, crf: int = 23, reduce_bitrate: str = "2M", opt_bitrate: str = "800k", gpu: str = "0") -> None:
     global history
 
     if "-optimized" in video_path:
@@ -91,7 +91,7 @@ def process_video(video_path: str, output_dir: str) -> None:
             "-preset",
             "fast",
             "-b:v",
-            "2M",
+            reduce_bitrate,
             "-vf",
             "scale=1280:720",
             "-c:a",
@@ -111,9 +111,9 @@ def process_video(video_path: str, output_dir: str) -> None:
             "-preset",
             "fast",
             "-cq",
-            "27",
+            str(cq),
             "-b:v",
-            "800k",
+            opt_bitrate,
             "-r",
             "30",
             "-vf",
@@ -125,7 +125,7 @@ def process_video(video_path: str, output_dir: str) -> None:
             "-movflags",
             "faststart",
             "-gpu",
-            "0",
+            str(gpu),
             optimized,
         ])
 
@@ -159,6 +159,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Procesa un video replicando server-gpu.py")
     parser.add_argument("-i", "--input", required=True, help="Fichero de entrada (mp4/mkv/avi/...) ")
     parser.add_argument("-o", "--output", required=True, help="Carpeta de salida (se crean los intermedios ahí)")
+    parser.add_argument("--cq", type=int, default=27, help="Valor CQ para NVENC en paso de optimización (por defecto: 27)")
+    parser.add_argument("--crf", type=int, default=23, help="Valor CRF para libx264 si se utiliza (por defecto: 23)")
+    parser.add_argument("--reduce-bitrate", default="2M", help="Bitrate para el paso de reducción (por defecto: 2M)")
+    parser.add_argument("--opt-bitrate", default="800k", help="Bitrate para el paso de optimización (por defecto: 800k)")
+    parser.add_argument("--gpu", default="0", help="ID de GPU para pasar a ffmpeg (por defecto: 0)")
     args = parser.parse_args()
 
     if os.path.splitext(args.input)[1].lower() not in valid_extensions:
@@ -168,7 +173,7 @@ def main() -> None:
     os.makedirs(args.output, exist_ok=True)
 
     try:
-        process_video(args.input, args.output)
+        process_video(args.input, args.output, cq=args.cq, crf=args.crf, reduce_bitrate=args.reduce_bitrate, opt_bitrate=args.opt_bitrate, gpu=args.gpu)
     except FileNotFoundError:
         print(f"Fichero no encontrado: {args.input}", file=sys.stderr)
         sys.exit(2)

@@ -4,7 +4,7 @@
 # (omxh264enc / v4l2 / nvmm) can be used on-device.
 # Usa la imagen base de L4T que coincida con tu JetPack/L4T (aquí R36.4.7 según tu sistema)
 # Si tu Jetson reporta R36 REVISION 4.7, ajusta la etiqueta si es necesario.
-FROM nvcr.io/nvidia/l4t-base:r36.4.7
+FROM nvcr.io/nvidia/l4t-jetpack:r36.4.0
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

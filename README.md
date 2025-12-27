@@ -9,6 +9,7 @@ Contenido
 - Cómo ejecutar (servidores y Ray)
 - Endpoints HTTP y uso
 - Solución de problemas
+ - Docker (build / push / pull / uso) — ver DOCKER.md
 
 Descripción
 El proyecto expone una interfaz web (plantilla en `templates/index.html`) y endpoints API para encolar y procesar vídeos desde una carpeta o subida de archivo. Hay tres variantes principales:

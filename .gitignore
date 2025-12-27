@@ -2,6 +2,7 @@
 input/
 output/
 temp/
+uploads/
 
 # --- Entornos virtuales ---
 venv/
@@ -52,5 +53,3 @@ pytest_cache/
 *.egg-info/
 dist/
 build/
-
-uploads/

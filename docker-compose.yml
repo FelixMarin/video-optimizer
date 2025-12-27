@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  app:
+    build: .
+    image: video-optimezer:latest
+    volumes:
+      - ./inputs:/app/inputs
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONUNBUFFERED=1
+    entrypoint: ["python","-m","optimize_video"]
+    command: ["-h"]
+    stdin_open: true
+    tty: true

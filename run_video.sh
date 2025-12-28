@@ -32,6 +32,6 @@ INPUT_BASENAME="$(basename "$INPUT_FILE_ABS")"
 docker run --rm -it \
     -v "$INPUT_DIR_ABS":/app/inputs \
     -v "$OUTPUT_DIR_ABS":/app/outputs \
-    video-optimizer:cuda \
+    felixmurcia/video-optimizer:cuda \
     -i "/app/inputs/$INPUT_BASENAME" \
     -o "/app/outputs"

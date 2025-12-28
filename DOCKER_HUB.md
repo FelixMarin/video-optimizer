@@ -9,6 +9,14 @@ Tags disponibles (ejemplos):
 - `felixmurcia/video-optimizer:cuda` — build para hosts x86_64 con CUDA/NVIDIA
 - `felixmurcia/video-optimizer:latest` — alias general (puede apuntar a `cuda`)
 
+Nota: la imagen define por defecto el ENTRYPOINT:
+
+```
+["python3", "-m", "optimize_video"]
+```
+
+Por tanto, ejecutar el contenedor con opciones (`-h`, `-i`, etc.) invocará la CLI `optimize_video`.
+
 Cómo descargar (pull):
 
 ```bash
@@ -45,30 +53,30 @@ docker run --runtime nvidia --rm -p 5000:5000 \
   felixmurcia/video-optimizer:jetson
 ```
 
-Ejecutar servidores específicos (sobrescribir ENTRYPOINT si hace falta)
+Ejecutar servidores específicos (sobrescribir `ENTRYPOINT`)
 
-Si la imagen define un `ENTRYPOINT` que no permite seleccionar el servidor, usa `--entrypoint` para ejecutar `python` y pasar el script:
+Como la imagen arranca por defecto la CLI `optimize_video`, para ejecutar los servidores hay que sobrescribir el `ENTRYPOINT` y llamar a `python3` con el script deseado. Ejemplos:
 
 ```bash
 # Ejecutar server.py
 docker run --rm -p 5000:5000 \
   -v $(pwd)/uploads:/app/uploads \
   -v $(pwd)/outputs:/app/outputs \
-  --entrypoint python \
+  --entrypoint python3 \
   felixmurcia/video-optimizer:cuda /app/server.py
 
 # Ejecutar server-gpu.py (con GPUs)
 docker run --gpus all --rm -p 5000:5000 \
   -v $(pwd)/uploads:/app/uploads \
   -v $(pwd)/outputs:/app/outputs \
-  --entrypoint python \
+  --entrypoint python3 \
   felixmurcia/video-optimizer:cuda /app/server-gpu.py
 
 # Ejecutar server-gpu-ray.py (usa Ray si lo configuras)
 docker run --gpus all --rm -p 5000:5000 \
   -v $(pwd)/uploads:/app/uploads \
   -v $(pwd)/outputs:/app/outputs \
-  --entrypoint python \
+  --entrypoint python3 \
   felixmurcia/video-optimizer:cuda /app/server-gpu-ray.py
 ```
 

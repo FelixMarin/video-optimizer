@@ -1,5 +1,5 @@
 # CUDA-enabled image (x86_64). Requires NVIDIA Container Toolkit on host.
-FROM nvcr.io/nvidia/cuda:13.1.0-runtime-ubuntu22.04
+FROM nvcr.io/nvidia/cuda:13.1.0-devel-ubuntu22.04
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

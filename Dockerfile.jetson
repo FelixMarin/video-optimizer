@@ -1,0 +1,30 @@
+# Jetson (aarch64) template Dockerfile — adaptar a la versión de JetPack/L4T instalada
+# IMPORTANT: Jetson boards typically do NOT support h264_nvenc; use GStreamer (gst-launch-1.0)
+# This Dockerfile installs GStreamer packages and tools so pipelines using hardware encoders
+# (omxh264enc / v4l2 / nvmm) can be used on-device.
+# Usa la imagen base de L4T que coincida con tu JetPack/L4T (aquí R36.4.7 según tu sistema)
+# Si tu Jetson reporta R36 REVISION 4.7, ajusta la etiqueta si es necesario.
+FROM nvcr.io/nvidia/l4t-jetpack:r36.4.0
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Instala Python y dependencias de GStreamer/codec para Jetson
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       python3 python3-pip python3-venv build-essential gcc git ca-certificates libffi-dev libssl-dev \
+       gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+       gstreamer1.0-plugins-ugly gstreamer1.0-libav \
+       ffmpeg \
+    && python3 -m pip install --upgrade pip setuptools wheel \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt /app/
+RUN python3 -m pip install --no-cache-dir -r requirements.txt
+COPY . /app
+RUN mkdir -p /app/inputs /app/outputs
+
+# ENTRYPOINT usa python3 en Jetson
+ENTRYPOINT ["python3", "-m", "optimize_video"]
+CMD ["-h"]

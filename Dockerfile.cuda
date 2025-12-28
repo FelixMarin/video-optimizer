@@ -1,0 +1,28 @@
+# CUDA-enabled image (x86_64). Requires NVIDIA Container Toolkit on host.
+FROM nvcr.io/nvidia/cuda:13.1.0-runtime-ubuntu22.04
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Dependencias de sistema y Python 3.11
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       python3.11 python3.11-venv python3-pip python3.11-distutils \
+       build-essential gcc ffmpeg git ca-certificates libffi-dev libssl-dev \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && python -m pip install --upgrade pip setuptools wheel \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt /app/
+
+RUN python -m pip install --no-cache-dir -r requirements.txt
+
+COPY . /app
+
+RUN mkdir -p /app/inputs /app/outputs
+
+# Usar entrypoint del proyecto
+ENTRYPOINT ["python", "-m", "optimize_video"]
+CMD ["-h"]

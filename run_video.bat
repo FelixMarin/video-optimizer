@@ -37,7 +37,7 @@ for %%A in ("%INPUT_FILE_ABS%") do set "INPUT_BASENAME=%%~nxA"
 docker run --rm -it ^
     -v "%INPUT_DIR_ABS%":/app/inputs ^
     -v "%OUTPUT_DIR_ABS%":/app/outputs ^
-    video-optimezer:latest ^
+    video-optimizer:cuda ^
     -i "/app/inputs/%INPUT_BASENAME%" ^
     -o "/app/outputs"
 

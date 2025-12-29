@@ -117,10 +117,6 @@ def process_video(
 ) -> None:
     global history
 
-    """Procesa un archivo de vídeo y genera una versión optimizada.
-
-    El parámetro `output_dir` puede ser ruta a carpeta existente.
-    """
     if "-optimized" in video_path:
         logger.info("Ignorado (ya optimizado): %s", video_path)
         return
@@ -136,43 +132,26 @@ def process_video(
     optimized = str(outdir / f"{base_root}-optimized.mp4")
 
     try:
-        # Paso 1: Reparar (remux a MP4 limpio)
-        run(
-            [
-                "ffmpeg",
-                "-err_detect",
-                "ignore_err",
-                "-i",
-                video_path,
-                "-map",
-                "0",
-                "-c:v",
-                "copy",
-                "-c:a",
-                "aac",
-                "-movflags",
-                "+faststart",
-                repaired,
-            ],
-        )
+        # Paso 1: Reparar (remux limpio)
+        run([
+            "ffmpeg",
+            "-err_detect", "ignore_err",
+            "-i", video_path,
+            "-map", "0",
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-movflags", "+faststart",
+            repaired,
+        ])
 
-        use_gst = False
-        if backend == "gstreamer" or (backend == "auto" and is_jetson()):
-            use_gst = True
+        use_gst = backend == "gstreamer" or (backend == "auto" and is_jetson())
 
         if use_gst:
-            # Encoders / muxers GStreamer
-            video_enc = choose_gst_sw_h264_encoder()
-            audio_enc = choose_gst_audio_encoder()
-            logger.info(
-                "Usando GStreamer (Jetson): video=%s, audio=%s",
-                video_enc,
-                audio_enc,
-            )
+            logger.info("Usando GStreamer (Jetson: decode HW, encode CPU)")
 
             demux, mux = choose_demux_mux(repaired)
 
-            # Bitrates -> kbps para x264enc/avenc_h264
+            # Convertir bitrates
             try:
                 reduce_k = int(float(reduce_bitrate.rstrip("M")) * 1000)
             except ValueError:
@@ -182,152 +161,123 @@ def process_video(
             except ValueError:
                 opt_k = 800
 
-            # --------- GStreamer: Paso 2 (REDUCE) ---------
-            # Estructura correcta:
-            # filesrc -> demux
-            #   video: demux.video_0 -> ... -> mux.
-            #   audio: demux.audio_0 -> ... -> mux.
-            # mp4mux name=mux -> filesink
+            # ============================
+            #   GStreamer REDUCE
+            #   Decode HW → Encode CPU
+            # ============================
             gst_reduce = [
                 "gst-launch-1.0",
 
                 "filesrc", f"location={repaired}",
                 "!", demux, "name=demux",
 
-                # Declarar muxer ANTES de usar mux.
                 mux, "name=mux", "!", "filesink", f"location={reduced}",
 
-                # VIDEO → mux.
+                # VIDEO: HW decode → CPU encode
                 "demux.video_0", "!", "queue", "!",
                 "h264parse", "!",
                 "nvv4l2decoder", "!",
                 "nvvidconv", "!",
                 "video/x-raw,format=I420,width=1280,height=720", "!",
-                video_enc,
+                "x264enc",
                 f"bitrate={reduce_k}",
                 "speed-preset=superfast",
                 "tune=zerolatency",
                 "key-int-max=60",
                 "!", "h264parse", "!", "mux.",
 
-                # AUDIO → mux.
+                # AUDIO: SW
                 "demux.audio_0", "!", "queue", "!",
                 "decodebin", "!", "audioconvert", "!",
-                audio_enc, "!", "aacparse", "!", "mux.",
+                "avenc_aac", "!", "aacparse", "!", "mux.",
             ]
 
             run(gst_reduce)
 
-            # --------- GStreamer: Paso 3 (OPTIMIZE) ---------
+            # ============================
+            #   GStreamer OPTIMIZE
+            #   Decode HW → Encode CPU
+            # ============================
             gst_opt = [
                 "gst-launch-1.0",
 
                 "filesrc", f"location={reduced}",
                 "!", demux, "name=demux",
 
-                # Declarar el mux antes de conectar a él y escribir en 'optimized'
                 mux, "name=mux", "!", "filesink", f"location={optimized}",
 
-                # Vídeo -> mux.
+                # VIDEO
                 "demux.video_0", "!", "queue", "!",
                 "h264parse", "!",
                 "nvv4l2decoder", "!",
                 "nvvidconv", "!",
                 "video/x-raw,format=I420,width=1280,height=720", "!",
-                video_enc,
+                "x264enc",
                 f"bitrate={opt_k}",
                 "speed-preset=superfast",
                 "tune=zerolatency",
                 "key-int-max=60",
                 "!", "h264parse", "!", "mux.",
 
-                # Audio -> mux.
+                # AUDIO
                 "demux.audio_0", "!", "queue", "!",
                 "decodebin", "!", "audioconvert", "!",
-                audio_enc, "!", "aacparse", "!", "mux.",
+                "avenc_aac", "!", "aacparse", "!", "mux.",
             ]
+
             run(gst_opt)
 
         else:
-            # Backend FFmpeg puro (por ejemplo, en x86 o si no quieres GStreamer)
+            # FFmpeg backend (x86)
             logger.info("Usando backend FFmpeg (sin GStreamer).")
 
-            # Paso 2: reducir
-            run(
-                [
-                    "ffmpeg",
-                    "-i",
-                    repaired,
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "fast",
-                    "-b:v",
-                    reduce_bitrate,
-                    "-vf",
-                    "scale=1280:720",
-                    "-c:a",
-                    "aac",
-                    "-ac",
-                    "2",
-                    reduced,
-                ],
-            )
+            run([
+                "ffmpeg",
+                "-hwaccel", "cuda",
+                "-i", repaired,
+                "-c:v", "h264_nvenc",
+                "-preset", "fast",
+                "-b:v", reduce_bitrate,
+                "-vf", "scale=1280:720",
+                "-c:a", "aac",
+                "-ac", "2",
+                reduced,
+            ])
 
-            # Paso 3: optimizar
-            run(
-                [
-                    "ffmpeg",
-                    "-i",
-                    reduced,
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "fast",
-                    "-crf",
-                    "27",
-                    "-b:v",
-                    opt_bitrate,
-                    "-r",
-                    "30",
-                    "-vf",
-                    "scale=1280:720",
-                    "-c:a",
-                    "aac",
-                    "-ac",
-                    "2",
-                    "-movflags",
-                    "faststart",
-                    optimized,
-                ],
-            )
+            run([
+                "ffmpeg",
+                "-hwaccel", "cuda",
+                "-i", reduced,
+                "-c:v", "h264_nvenc",
+                "-preset", "fast",
+                "-b:v", opt_bitrate,
+                "-vf", "scale=1280:720",
+                "-c:a", "aac",
+                "-ac", "2",
+                "-movflags", "faststart",
+                optimized,
+            ])
 
-        # Paso 4: Validar duración
+        # Validación
         orig_dur = get_video_duration(video_path)
         opt_dur = get_video_duration(optimized)
         logger.info("Duración original: %.2fs, optimizado: %.2fs", orig_dur, opt_dur)
-        if abs(orig_dur - opt_dur) > 2:
-            msg = "La duración del archivo optimizado no coincide con el original (>2s)"
-            raise ValueError(msg)
 
-        # Eliminar ficheros originales e intermedios
+        if abs(orig_dur - opt_dur) > 2:
+            raise ValueError("Duración incorrecta (>2s)")
+
+        # Limpiar
         for f in (video_path, repaired, reduced):
             with contextlib.suppress(Exception):
                 Path(f).unlink(missing_ok=True)
 
-        history.append(
-            {
-                "name": Path(video_path).name,
-                "status": "Procesado correctamente",
-            },
-        )
+        history.append({"name": Path(video_path).name, "status": "Procesado correctamente"})
         logger.info("Procesado correctamente: %s", optimized)
 
     except Exception as e:
         history.append({"name": Path(video_path).name, "status": f"Error: {e}"})
         logger.exception("Error procesando %s", video_path)
         raise
-
 
 def main() -> None:
     """Punto de entrada CLI: parsea argumentos y lanza procesamiento o servidor."""

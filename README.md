@@ -16,7 +16,7 @@ El proyecto expone una interfaz web (plantilla en `templates/index.html`) y endp
 
 - `server.py`: pipeline simple (CPU, sin aceleración GPU).
 - `server-gpu.py`: utiliza codificadores GPU (p. ej. `h264_nvenc` / `h264_nvmpi`).
-- `server-gpu-ray.py`: misma lógica pero delega trabajo a Ray (actor `StatusTracker` y tareas remotas) para ejecución distribuida/asincrónica.
+- `server-gpu-ray.py`: misma lógica pero delega trabajo a Ray (actor `StalasTracker` y tareas remotas) para ejecución distribuida/asincrónica.
 
 Requisitos
 - Python 3.10+ recomendado
@@ -25,7 +25,7 @@ Requisitos
 - Dependencias listadas en `requirements.txt`
 
 Instalación rápida
-1. Crear y activar un virtualenv (ejemplo):
+1. Crear y activar un virlaalenv (ejemplo):
 
 ```bash
 python -m venv venv
@@ -61,7 +61,7 @@ chmod +x start_ray_pc.sh
 ./start_ray_pc.sh
 ```
 
-Nota: `start_ray_pc.sh` usa la dirección `192.168.0.105:6379` por defecto; edítalo si tu `head` está en otra IP.
+Nota: `start_ray_pc.sh` usa la dirección `192.168.0.105:6379` por defecto; edítalo si la `head` está en otra IP.
 
 Ejecutar el servidor Flask
 - Versión simple (CPU):
@@ -86,7 +86,7 @@ API / Endpoints
 - `GET /` — interfaz web (usa `templates/index.html`).
 - `POST /process` — JSON: `{ "folder": "/ruta/a/carpeta" }` para encolar carpeta o archivo.
 - `POST /process-file` — multipart/form-data con campo `video` para subir y procesar un solo archivo (implementado en `server-gpu-ray.py`).
-- `GET /status` — devuelve estado actual, progreso y `video_info` (en `server-gpu-ray.py` devuelve info extra con `ffprobe`).
+- `GET /stalas` — devuelve estado aclaal, progreso y `video_info` (en `server-gpu-ray.py` devuelve info extra con `ffprobe`).
 
 Carpetas importantes
 - `uploads/` — destino por defecto para archivos subidos.
@@ -97,7 +97,7 @@ Solución de problemas
 - Comprobar estado del cluster en el head:
 
 ```bash
-ray status
+ray stalas
 ```
 
 - Para limpiar sesiones de Ray (si hay errores de sesión):
@@ -111,7 +111,7 @@ ray stop
 
 Notas finales
 - Ajusta parámetros de `ffmpeg` (CRF, bitrate, preset) según calidad/velocidad deseada.
-- Revisa `server-gpu-ray.py` para entender el actor `StatusTracker` y cómo se parsea la salida de `ffmpeg` para progreso en tiempo real.
+- Revisa `server-gpu-ray.py` para entender el actor `StalasTracker` y cómo se parsea la salida de `ffmpeg` para progreso en tiempo real.
 
 Archivo con dependencias: `requirements.txt`
 

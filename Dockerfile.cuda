@@ -23,6 +23,4 @@ COPY . /app
 
 RUN mkdir -p /app/inputs /app/outputs
 
-# Usar entrypoint del proyecto (ejecuta optimize_video.py)
-ENTRYPOINT ["python", "optimize_video.py"]
-CMD ["-h"]
+CMD ["python3"]

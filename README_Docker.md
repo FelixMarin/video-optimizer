@@ -41,7 +41,7 @@ docker build -f Dockerfile.cuda -t video-optimezer:cuda .
 docker run --gpus all --rm -it -v "$PWD/inputs":/app/inputs -v "$PWD/outputs":/app/outputs video-optimezer:cuda python3 optimize_video.py -i /app/inputs/el_cantico_final.mp4 -o /app/outputs
 ```
 
-- Para NVIDIA Jetson (ARM aarch64) hay una plantilla `Dockerfile.jetson`. Adáptala a la versión de JetPack/L4T de tu dispositivo y construye directamente en el Jetson o con herramientas cross-build:
+- Para NVIDIA Jetson (ARM aarch64) hay una plantilla `Dockerfile.jetson`. Adáptala a la versión de JetPack/L4T de la dispositivo y construye directamente en el Jetson o con herramientas cross-build:
 
 ```bash
 # En Jetson
@@ -50,11 +50,11 @@ docker build -f Dockerfile.jetson -t video-optimezer:jetson .
 
 Requisitos adicionales:
 - En hosts x86_64 instala: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
-- En Jetson normalmente no necesitas `nvidia-docker`, pero debes usar la imagen base compatible con tu JetPack y tener los paquetes del sistema instalados.
+- En Jetson normalmente no necesitas `nvidia-docker`, pero debes usar la imagen base compatible con la JetPack y tener los paquetes del sistema instalados.
 
 Compatibilidad JetPack/L4T:
 
-- Tu Jetson reporta: `R36 (REVISION: 4.7)` y CUDA `12.6`. Usa una imagen base L4T que coincida con R36.4.7 si vas a construir imágenes en el dispositivo. El `Dockerfile.jetson` en este repositorio apunta ahora a `nvcr.io/nvidia/l4t-base:r36.4.7`.
+- La Jetson reporta: `R36 (REVISION: 4.7)` y CUDA `12.6`. Usa una imagen base L4T que coincida con R36.4.7 si vas a construir imágenes en el dispositivo. El `Dockerfile.jetson` en este repositorio apunta ahora a `nvcr.io/nvidia/l4t-base:r36.4.7`.
 - Alternativa recomendada: construir y ejecutar localmente en la Jetson usando el Python del sistema (evita discrepancias entre la imagen y los controladores instalados). Ejemplo de ejecución directa (sin Docker):
 
 ```bash
@@ -72,4 +72,4 @@ gst-launch-1.0 filesrc location=/app/inputs/el_cantico_final.mp4 ! qtdemux name=
   demux.video_0 ! queue ! decodebin ! nvvidconv ! 'video/x-raw(memory:NVMM),format=I420' ! omxh264enc ! h264parse ! qtmux ! filesink location=/app/outputs/out.mp4
 ```
 
-- Ajusta el pipeline según la versión de JetPack/L4T y los plugins disponibles (`omxh264enc` vs `nvh264enc`, etc.). Si tu aplicación invoca `ffmpeg` directamente, considera adaptar la invocación para usar GStreamer (`-f gstreamer`) o crear un wrapper que ejecute `gst-launch-1.0`.
+- Ajusta el pipeline según la versión de JetPack/L4T y los plugins disponibles (`omxh264enc` vs `nvh264enc`, etc.). Si la aplicación invoca `ffmpeg` directamente, considera adaptar la invocación para usar GStreamer (`-f gstreamer`) o crear un wrapper que ejecute `gst-launch-1.0`.

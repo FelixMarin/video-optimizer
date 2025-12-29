@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
+    image: video-optimizer-cuda:latest
+    volumes:
+      - ./inputs:/app/inputs
+      - ./outputs:/app/outputs
+    ports:
+      - "5001:5001"
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true

@@ -25,6 +25,4 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 COPY . /app
 RUN mkdir -p /app/inputs /app/outputs
 
-# ENTRYPOINT usa python3 en Jetson (ejecuta el script optimize_video.py)
-ENTRYPOINT ["python3", "optimize_video.py"]
-CMD ["-h"]
+CMD ["python3"]

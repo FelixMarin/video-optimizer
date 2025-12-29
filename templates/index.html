@@ -262,7 +262,11 @@
 
 <script>
 $(document).ready(function() {
-
+  
+  // Variables de estado
+  let lastLogHash = "";
+  let isProcessing = false;
+  
   // --- Lanzar procesamiento por ruta ---
   $('#startProcessing').click(function() {
     const folderPath = $('#folderPath').val().trim();
@@ -270,193 +274,284 @@ $(document).ready(function() {
       alert('Por favor, introduce una ruta válida.');
       return;
     }
+    
+    // Resetear interfaz
+    resetUI();
+    isProcessing = true;
+    
     $.ajax({
       url: '/process',
       type: 'POST',
       contentType: 'application/json',
       data: JSON.stringify({ folder: folderPath }),
       success: function(resp) {
-        console.log(resp.message);
+        console.log('Procesamiento iniciado:', resp.message);
       },
       error: function(xhr) {
-        console.error(xhr.responseJSON.error);
+        console.error('Error:', xhr.responseJSON.error);
+        alert('Error: ' + xhr.responseJSON.error);
+        isProcessing = false;
       }
     });
   });
   
-	$('#upload-form').on('submit', function(e) {
-	  e.preventDefault();
-	  if ($('#video-input')[0].files.length === 0) return alert('Selecciona un archivo primero');
-
-	  $('#upload-status').fadeIn();
-	  $('.progress-bar div').css('width', '0%');
-	  $('#upload-percent').text('0%');
-
-	  // Simular carga (sustituye por tu lógica AJAX real)
-	  let p = 0;
-	  const interval = setInterval(() => {
-		p += 10;
-		$('.progress-bar div').css('width', p + '%');
-		$('#upload-percent').text(p + '%');
-		if (p >= 100) {
-		  clearInterval(interval);
-		  setTimeout(() => $('#upload-status').fadeOut(), 500);
-		}
-	  }, 300);
-	});
-
   // --- Subida de archivo ---
-  $('#upload-form').submit(function(e) {
+  $('#upload-form').on('submit', function(e) {
     e.preventDefault();
-    const fileInput = $('#video-input')[0];
-    if (!fileInput.files.length) {
+    if ($('#video-input')[0].files.length === 0) {
       alert('Selecciona un archivo primero.');
       return;
     }
-
-    $('#upload-status').removeClass('hidden');
-    $('#status-text').text('Subiendo...');
-    $('#upload-progress').val(0);
+    
+    $('#upload-status').fadeIn();
+    $('.progress-bar div').css('width', '0%');
     $('#upload-percent').text('0%');
-
-    const formData = new FormData();
-    formData.append('video', fileInput.files[0]);
-
-    $.ajax({
-      url: '/process-file',
-      type: 'POST',
-      data: formData,
-      processData: false,
-      contentType: false,
-      xhr: function() {
-        let xhr = $.ajaxSettings.xhr();
-        if (xhr.upload) {
-          xhr.upload.addEventListener('progress', function(evt) {
-            if (evt.lengthComputable) {
-              let percent = Math.round((evt.loaded / evt.total) * 100);
-              $('#upload-progress').val(percent);
-              $('#upload-percent').text(percent + '%');
-            }
-          }, false);
-        }
-        return xhr;
-      },
-      success: function(resp) {
-        $('#status-text').text(resp.message);
-      },
-      error: function(xhr) {
-        $('#status-text').text('Error en la subida');
-        console.error(xhr.responseJSON.error);
-      }
-    });
+    
+    // Simulación de subida
+    simulateUpload();
   });
 
-	function formatSecondsToHHMMSS(seconds) {
-	  seconds = parseInt(seconds, 10);
-	  const h = Math.floor(seconds / 3600);
-	  const m = Math.floor((seconds % 3600) / 60);
-	  const s = seconds % 60;
+  // Función para resetear UI
+  function resetUI() {
+    $('#stat-frames').text('–');
+    $('#stat-fps').text('–');
+    $('#stat-time').text('–');
+    $('#stat-bitrate').text('–');
+    $('#stat-speed').text('–');
+    lastLogHash = "";
+  }
 
-	  return [h, m, s]
-		.map(unit => String(unit).padStart(2, '0'))
-		.join(':');
-	}
+  // Simulación de subida
+  function simulateUpload() {
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 5;
+      $('.progress-bar div').css('width', progress + '%');
+      $('#upload-percent').text(progress + '%');
+      
+      if (progress >= 100) {
+        clearInterval(interval);
+        setTimeout(() => {
+          $('#upload-status').fadeOut();
+          alert('Archivo subido correctamente (simulación)\nUsa la ruta para procesar.');
+        }, 500);
+      }
+    }, 200);
+  }
 
-	// --- Actualización de estado cada 2s ---
-	function updateStatus() {
-	$.getJSON('/status', function(data) {
-		try {
-			console.debug('Status response:', data);
-			// Actualiza el nombre del archivo (soporta varias variantes de servidor)
-			$('#currentFile').text(data.current_file || data.current_video || 'Ninguno');
+  // Función para extraer datos del log
+function parseLogLine(logLine) {
+    const data = {
+        frames: '–',
+        fps: '–',
+        time: '–',
+        bitrate: '–',
+        speed: '–'
+    };
 
-			// Extrae y muestra los valores en la tabla
-			const resumen = data.log_line || '';
-			const campos = {};
+    if (!logLine) return data;
 
-			resumen.split('|').forEach(part => {
-				const pieces = part.split('=');
-				if (pieces.length < 2) return;
-				const key = pieces[0].trim();
-				const valueRaw = pieces.slice(1).join('=').trim();
-				if (key && valueRaw) campos[key.toLowerCase()] = valueRaw;
-			});
+    console.log('Parseando log:', logLine);
 
-			$('#stat-frames').text(campos['frames'] || '–');
-			$('#stat-fps').text(campos['fps'] || '–');
-			const timeVal = campos['time'] || '';
-			$('#stat-time').text(timeVal ? (timeVal.split('.')[0]) : '–');
-			$('#stat-bitrate').text(campos['bitrate'] || '–');
-			$('#stat-speed').text(campos['speed'] || '–');
+    // 1. INTENTAR FORMATO GStreamer: "progressreport0 (00:01:25): 101 / 139 seconds (72,7 %)"
+    const gstMatch = logLine.match(/progressreport.*\((\d+:\d+:\d+)\):\s*(\d+)\s*\/\s*(\d+)\s*seconds\s*\(([\d,]+)\s*%\)/);
+    
+    if (gstMatch) {
+        const currentTime = gstMatch[1];      // 00:01:25
+        const secondsProcessed = parseInt(gstMatch[2]); // 101 segundos procesados
+        const totalSeconds = parseInt(gstMatch[3]);     // 139 segundos totales
+        const percentage = gstMatch[4].replace(',', '.'); // 72,7 -> 72.7
+        
+        // CALCULAR FPS (asumiendo 25 fps estándar)
+        const fps = 25; // Valor por defecto
+        const framesProcessed = secondsProcessed * fps;
+        const totalFrames = totalSeconds * fps;
+        
+        // Mapear a campos
+        data.time = currentTime;
+        data.frames = Math.round(framesProcessed) + " / " + Math.round(totalFrames); // Ej: "2525 / 3475"
+        data.fps = fps + " fps"; // Valor fijo o calculado
+        data.bitrate = percentage + '%';
+        
+        return data;
+    }
 
-			const info = data.video_info || {};
-			const duracionSegundos = (info.duration && info.duration.split) ? info.duration.split(' ')[0] : null; // "9102 sec" → "9102"
-			const duracionFormateada = duracionSegundos ? formatSecondsToHHMMSS(duracionSegundos) : '–';
-			$('#info-duration').text(duracionFormateada);
-			$('#info-name').text(info.name || '–');
-			$('#info-resolution').text(info.resolution || '–');
-			$('#info-format').text(info.format || '–');
-			$('#info-vcodec').text(info.vcodec || '–');
-			$('#info-acodec').text(info.acodec || '–');
-			$('#info-size').text(info.size || '–');
+    // 2. FORMATO FFmpeg (original)
+    const keyValuePairs = {};
+    const regex = /(\w+)=([^=\s]+(?:\s[^=\s]+)*?)(?=\s+\w+=|$)/g;
+    let match;
+    
+    while ((match = regex.exec(logLine)) !== null) {
+        keyValuePairs[match[1].toLowerCase()] = match[2].trim();
+    }
 
-			// Actualiza los pasos e historial
-			updateSteps(data.current_step);
-			updateHistory(Array.isArray(data.history) ? data.history : []);
-		} catch (err) {
-			console.error('Error procesando /status:', err, data);
-		}
+    // Mapeo ORIGINAL
+    if (keyValuePairs.frame || keyValuePairs.frames) {
+        data.frames = keyValuePairs.frame || keyValuePairs.frames || '–';
+    }
+    
+    if (keyValuePairs.fps) {
+        data.fps = keyValuePairs.fps;
+    }
+    
+    if (keyValuePairs.time) {
+        const timeMatch = keyValuePairs.time.match(/^(\d+:\d+:\d+)/);
+        data.time = timeMatch ? timeMatch[1] : keyValuePairs.time;
+    }
+    
+    if (keyValuePairs.bitrate) {
+        data.bitrate = keyValuePairs.bitrate;
+    }
+    
+    if (keyValuePairs.speed) {
+        data.speed = keyValuePairs.speed;
+    }
 
-		// Actualiza el icono de estado
-		updateStatusIcon(data.log_line);
-	  });
-	}
+    return data;
+}
+
+  // --- Actualización de estado ---
+  function updateStatus() {
+    $.getJSON('/status')
+      .done(function(data) {
+        try {
+          // Actualizar archivo en proceso
+          const currentFile = data.current_file || 'Ninguno';
+          $('#currentFile').text(currentFile);
+          
+          // Actualizar pasos del pipeline
+          updateSteps(data.current_step || 0);
+          
+          // Actualizar información del video
+          updateVideoInfo(data.video_info || {});
+          
+          // Actualizar historial
+          updateHistory(data.history || []);
+          
+          // Procesar log si hay uno nuevo
+          const logLine = data.log_line || data.status_raw || '';
+          const newHash = logLine ? btoa(encodeURIComponent(logLine)) : '';
+          
+          if (newHash !== lastLogHash) {
+            lastLogHash = newHash;
+            
+            if (logLine) {
+              console.log('Nuevo log:', logLine);
+              const logData = parseLogLine(logLine);
+              
+              // Actualizar estadísticas
+              $('#stat-frames').text(logData.frames);
+              $('#stat-fps').text(logData.fps);
+              $('#stat-time').text(logData.time);
+              $('#stat-bitrate').text(logData.bitrate);
+              $('#stat-speed').text(logData.speed);
+              
+              // Actualizar icono de estado
+              updateStatusIcon(logLine);
+            }
+          }
+          
+          // Actualizar estado de procesamiento
+          isProcessing = data.processing_active || data.current_step > 0;
+          
+        } catch (err) {
+          console.error('Error procesando respuesta:', err);
+        }
+      })
+      .fail(function(xhr, status, error) {
+        console.error('Error obteniendo estado:', error);
+      });
+  }
 
   function updateSteps(step) {
     $('.pipeline-step').removeClass('active completed').addClass('inactive');
+    
     for (let i = 1; i < step; i++) {
       $('#step' + i).removeClass('inactive').addClass('completed');
     }
+    
     if (step > 0 && step <= 4) {
       $('#step' + step).removeClass('inactive').addClass('active');
     }
   }
 
-	function updateHistory(history) {
-	  $('#history').empty();
-	  history.forEach(item => {
-		try {
-		  if (!item) return;
-		  const name = Array.isArray(item) ? item[0] : item.name || item[0] || String(item);
-		  const message = Array.isArray(item) ? item[1] : item.message || item.status || String(item);
-		  const statusClass = (message && message.toString().startsWith('Error')) ? 'status-error' : 'status-success';
-		  $('#history').append(
-			`<tr><td>${name}</td><td class="${statusClass}">${message}</td></tr>`
-		  );
-		} catch (e) {
-		  console.warn('Historial: entrada con formato inesperado', item, e);
-		}
-	  });
-	}
+  function updateVideoInfo(info) {
+    if (!info || Object.keys(info).length === 0) return;
+    
+    // Formatear duración
+    let durationFormatted = '–';
+    if (info.duration) {
+      const match = info.duration.match(/(\d+(?:\.\d+)?)/);
+      if (match) {
+        const totalSeconds = parseInt(match[1]);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        durationFormatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      }
+    }
+    
+    $('#info-duration').text(durationFormatted);
+    $('#info-name').text(info.name || '–');
+    $('#info-resolution').text(info.resolution || '–');
+    $('#info-format').text(info.formats || '–');
+    $('#info-vcodec').text(info.vcodec || '–');
+    $('#info-acodec').text(info.acodec || '–');
+    $('#info-size').text(info.size || '–');
+  }
 
-	function updateStatusIcon(logLine) {
-	  const iconElement = $('#statusIcon');
-	  const line = logLine || '';
+  function updateHistory(history) {
+    $('#history').empty();
+    if (!Array.isArray(history) || history.length === 0) {
+      $('#history').append('<tr><td colspan="2" class="text-center">Sin historial</td></tr>');
+      return;
+    }
+    
+    history.forEach(item => {
+      let name = 'Desconocido';
+      let status = 'Completado';
+      
+      if (typeof item === 'object') {
+        name = item.name || item.file || 'Desconocido';
+        status = item.status || item.message || 'Completado';
+      }
+      
+      const statusClass = status.toLowerCase().includes('error') ? 'status-error' : 'status-success';
+      
+      $('#history').append(`
+        <tr>
+          <td>${name}</td>
+          <td class="${statusClass}">${status}</td>
+        </tr>
+      `);
+    });
+  }
 
-	  let icon = '🟡'; // Estado por defecto: en espera
+  function updateStatusIcon(logLine) {
+    const icon = $('#statusIcon');
+    if (!logLine) {
+      icon.text('🟡');
+      return;
+    }
+    
+    const line = logLine.toLowerCase();
+    
+    if (line.includes('error') || line.includes('failed')) {
+      icon.text('🔴');
+    } else if (line.includes('progress=100%') || line.includes('completado')) {
+      icon.text('✅');
+    } else if (line.includes('time=') || line.includes('progress=')) {
+      icon.text('🟢');
+    } else {
+      icon.text('🟡');
+    }
+  }
 
-	  if (line.toLowerCase().includes('error') || line.toLowerCase().includes('failed')) {
-		icon = '🔴'; // Error detectado
-	  } else if (line.toLowerCase().includes('frame') || line.toLowerCase().includes('speed')) {
-		icon = '🟢'; // Procesando activamente
-	  } else if (line.toLowerCase().includes('completed') || line.toLowerCase().includes('done')) {
-		icon = '✅'; // Finalizado correctamente
-	  }
-
-	  iconElement.text(icon);
-	}
-
-  setInterval(updateStatus, 2000);
+  // Actualizar cada segundo
+  setInterval(updateStatus, 1000);
+  
+  // Actualizar inmediatamente
+  updateStatus();
 });
 </script>
 </body> 

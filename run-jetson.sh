@@ -18,6 +18,6 @@ INPUT=${1:-inputs/el_cantico_final.mp4}
 OUTPUT_DIR=${2:-outputs}
 
 echo "Ejecutando optimize_video con backend=gstreamer" | tee -a "$OUTLOG"
-python3 -m optimize_video -i "$INPUT" -o "$OUTPUT_DIR" --backend gstreamer 2>&1 | tee -a "$OUTLOG"
+python3 optimize_video.py -i "$INPUT" -o "$OUTPUT_DIR" --backend gstreamer 2>&1 | tee -a "$OUTLOG"
 
 echo "Fin. Revisa $OUTLOG" 

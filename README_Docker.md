@@ -6,13 +6,13 @@ Construye la imagen Docker desde la raíz del proyecto:
 docker build -t video-optimezer:latest .
 ```
 
-Ejecuta el contenedor para ver la ayuda del CLI (entrypoint ejecuta `python -m optimize_video`):
+Ejecuta el contenedor para ver la ayuda del CLI (entrypoint ejecuta `python optimize_video.py`):
 
 ```bash
 docker run --rm -it \
   -v "$PWD/inputs":/app/inputs \
   -v "$PWD/outputs":/app/outputs \
-  video-optimezer:latest -h
+  video-optimezer:latest python3 optimize_video.py -h
 ```
 
 Ejemplo procesando un archivo dentro del contenedor (usa rutas en el contenedor `/app/inputs` y `/app/outputs`):
@@ -38,7 +38,7 @@ GPU / CUDA:
 
 ```bash
 docker build -f Dockerfile.cuda -t video-optimezer:cuda .
-docker run --gpus all --rm -it -v "$PWD/inputs":/app/inputs -v "$PWD/outputs":/app/outputs video-optimezer:cuda -i /app/inputs/el_cantico_final.mp4 -o /app/outputs
+docker run --gpus all --rm -it -v "$PWD/inputs":/app/inputs -v "$PWD/outputs":/app/outputs video-optimezer:cuda python3 optimize_video.py -i /app/inputs/el_cantico_final.mp4 -o /app/outputs
 ```
 
 - Para NVIDIA Jetson (ARM aarch64) hay una plantilla `Dockerfile.jetson`. Adáptala a la versión de JetPack/L4T de tu dispositivo y construye directamente en el Jetson o con herramientas cross-build:
@@ -58,7 +58,7 @@ Compatibilidad JetPack/L4T:
 - Alternativa recomendada: construir y ejecutar localmente en la Jetson usando el Python del sistema (evita discrepancias entre la imagen y los controladores instalados). Ejemplo de ejecución directa (sin Docker):
 
 ```bash
-python3 -m optimize_video -i /ruta/a/input.mp4 -o /ruta/a/outputs --backend gstreamer
+python3 optimize_video.py -i /ruta/a/input.mp4 -o /ruta/a/outputs --backend gstreamer
 ```
 
 

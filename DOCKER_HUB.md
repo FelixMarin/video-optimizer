@@ -9,13 +9,13 @@ Tags disponibles (ejemplos):
 - `felixmurcia/video-optimizer:cuda` — build para hosts x86_64 con CUDA/NVIDIA
 - `felixmurcia/video-optimizer:latest` — alias general (puede apuntar a `cuda`)
 
-Nota: la imagen define por defecto el ENTRYPOINT:
+Nota: la imagen define por defecto el ENTRYPOINT que ejecuta el script:
 
 ```
-["python3", "-m", "optimize_video"]
+["python3", "optimize_video.py"]
 ```
 
-Por tanto, ejecutar el contenedor con opciones (`-h`, `-i`, etc.) invocará la CLI `optimize_video`.
+Por tanto, ejecutar el contenedor con opciones (`-h`, `-i`, etc.) invocará la CLI `optimize_video.py`.
 
 Cómo descargar (pull):
 
@@ -44,6 +44,9 @@ docker run --gpus all --rm -p 5000:5000 \
   felixmurcia/video-optimizer:cuda
 ```
 
+Ejecutar servidores específicos (sobrescribir `ENTRYPOINT`)
+```
+
 - Ejecutar en Jetson con `--runtime nvidia` (si tu sistema lo requiere):
 
 ```bash
@@ -54,19 +57,20 @@ docker run --runtime nvidia --rm -p 5000:5000 \
 ```
 
 Ejecutar servidores específicos (sobrescribir `ENTRYPOINT`)
+# Ejecutar server(s)
 
-Como la imagen arranca por defecto la CLI `optimize_video`, para ejecutar los servidores hay que sobrescribir el `ENTRYPOINT` y llamar a `python3` con el script deseado. Ejemplos:
+# Opción 1 — pasar `--server` al ENTRYPOINT (`optimize_video.py` actúa como dispatcher):
+docker run --gpus all --rm -p 5000:5000 \
+  -v $(pwd)/uploads:/app/uploads \
+  -v $(pwd)/outputs:/app/outputs \
+  felixmurcia/video-optimizer:cuda --server server-gpu
 
-```bash
-# Ejecutar server.py
-docker run --rm -p 5000:5000 \
+# Opción 2 — sobrescribir el entrypoint y ejecutar el script directamente:
+docker run --gpus all --rm -p 5000:5000 \
   -v $(pwd)/uploads:/app/uploads \
   -v $(pwd)/outputs:/app/outputs \
   --entrypoint python3 \
-  felixmurcia/video-optimizer:cuda /app/server.py
-
-# Ejecutar server-gpu.py (con GPUs)
-docker run --gpus all --rm -p 5000:5000 \
+  felixmurcia/video-optimizer:cuda /app/server-gpu.py
   -v $(pwd)/uploads:/app/uploads \
   -v $(pwd)/outputs:/app/outputs \
   --entrypoint python3 \
@@ -91,7 +95,7 @@ O invocar el módulo Python directamente:
 
 ```bash
 docker run --rm -v $(pwd)/inputs:/app/inputs -v $(pwd)/outputs:/app/outputs \
-  --entrypoint python felixmurcia/video-optimizer:cuda -m optimize_video -h
+  --entrypoint python felixmurcia/video-optimizer:cuda optimize_video.py -h
 ```
 
 Notas y recomendaciones:

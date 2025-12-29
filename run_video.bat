@@ -34,7 +34,7 @@ if "%OUTPUT_DIR_ABS:~-1%"=="\" set "OUTPUT_DIR_ABS=%OUTPUT_DIR_ABS:~0,-1%"
 for %%A in ("%INPUT_FILE_ABS%") do set "INPUT_BASENAME=%%~nxA"
 
 :: --- Ejecución del contenedor ---
-docker run --rm -it ^
+docker run --rm -it --gpus all ^
     -v "%INPUT_DIR_ABS%":/app/inputs ^
     -v "%OUTPUT_DIR_ABS%":/app/outputs ^
     felixmurcia/video-optimizer:cuda ^

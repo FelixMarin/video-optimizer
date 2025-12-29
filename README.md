@@ -122,7 +122,7 @@ Archivo con dependencias: `requirements.txt`
 
 Se añadió un módulo mínimo para ejecutar la optimización sin levantar el servidor ni Ray.
 
-- **Archivo**: [optimize_video/__main__.py](optimize_video/__main__.py)
+- **Archivo**: [optimize_video.py](optimize_video.py)
 - **Requisitos**: `ffmpeg` y `ffprobe` disponibles en `PATH` (la herramienta invoca ambos).
 
 **Comportamiento**: replica exactamente el pipeline de `server-gpu.py`:
@@ -136,7 +136,7 @@ Se añadió un módulo mínimo para ejecutar la optimización sin levantar el se
 **Uso**:
 
 ```bash
-python -m optimize_video -i /ruta/al/video.mp4 -o /ruta/salida
+python3 optimize_video.py -i /ruta/al/video.mp4 -o /ruta/salida
 ```
 
 - `-i/--input`: fichero de entrada (`.mp4`, `.mkv`, `.avi`, `.mov`, `.flv`, `.wmv`).
@@ -152,7 +152,7 @@ python -m optimize_video -i /ruta/al/video.mp4 -o /ruta/salida
 **Ayuda**:
 
 ```bash
-python -m optimize_video -h
+python3 optimize_video.py -h
 ```
 
 **Advertencias**:
@@ -161,30 +161,30 @@ python -m optimize_video -h
 
 ### Ejemplos de uso
 
-A continuación hay ejemplos prácticos usando el módulo CLI ([optimize_video/__main__.py](optimize_video/__main__.py)).
+A continuación hay ejemplos prácticos usando el CLI (`optimize_video.py`).
 
 - Optimización básica (usa valores por defecto):
 
 ```bash
-python -m optimize_video -i /ruta/a/video.mp4 -o /ruta/salida
+python3 optimize_video.py -i /ruta/a/video.mp4 -o /ruta/salida
 ```
 
 - Ajustar CQ (NVENC) y bitrate de optimización:
 
 ```bash
-python -m optimize_video -i input.mkv -o outdir --cq 24 --opt-bitrate 1200k
+python3 optimize_video.py -i input.mkv -o outdir --cq 24 --opt-bitrate 1200k
 ```
 
 - Cambiar bitrate en el paso de reducción y el CRF (si se usara libx264):
 
 ```bash
-python -m optimize_video -i input.mov -o outdir --reduce-bitrate 3M --crf 20
+python3 optimize_video.py -i input.mov -o outdir --reduce-bitrate 3M --crf 20
 ```
 
 - Seleccionar GPU diferente (p. ej. GPU 1):
 
 ```bash
-python -m optimize_video -i input.mp4 -o outdir --gpu 1
+python3 optimize_video.py -i input.mp4 -o outdir --gpu 1
 ```
 
 Notas:

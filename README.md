@@ -186,6 +186,217 @@ python -m optimize_video -i input.mov -o outdir --reduce-bitrate 3M --crf 20
 ```bash
 python -m optimize_video -i input.mp4 -o outdir --gpu 1
 ```
+# USAGE — video-optimezer
+
+Este archivo resume los pasos mínimos para instalar, ejecutar y usar el servicio de optimización de vídeo incluido en este repositorio.
+
+1) Requisitos
+- Python 3.10+
+- `ffmpeg` y `ffprobe` disponibles en `PATH`
+- (Opcional) Ray si usas la variante `server-gpu-ray.py`
+
+2) Preparación rápida
+
+```bash
+git clone <repo>    # si aplica
+cd video-optimezer
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+Instalar Ray (opcional):
+
+```bash
+pip install "ray[default]==2.42.1"
+```
+
+4) API - ejemplos prácticos
+
+- Encolar carpeta para procesar (JSON):
+
+```bash
+curl -X POST http://localhost:5000/process \
+  -H 'Content-Type: application/json' \
+  -d '{"folder": "/ruta/a/carpeta_con_videos"}'
+```
+
+- Subir y procesar un solo archivo (multipart/form-data):
+
+```bash
+curl -X POST http://localhost:5000/process-file \
+  -F "video=@/ruta/al/video.mp4"
+```
+
+- Consultar estado y progreso:
+
+```bash
+curl http://localhost:5000/status
+```
+
+3) Directorios relevantes
+- `uploads/` — donde se guardan las subidas cuando se usa `/process-file`.
+- `templates/` — contiene `index.html`, la UI simple.
+
+4) Parámetros útiles y ajustes
+- Si ajustas calidad/velocidad: modifica `crf`, `-b:v`, `-preset` o `-cq` en los scripts (`server*.py`).
+- Para usar codificadores específicos en Jetson/PC revise `get_gpu_encoder()` en `server-gpu-ray.py`.
+
+5) Troubleshooting rápido
+- Asegúrate de que `ffmpeg`/`ffprobe` estén accesibles: `ffprobe -version` debe devolver algo.
+- Si Ray no conecta: comprobar IP/puerto y firewalls, usar `ray status` en el head.
+- Si ves errores de sesión Ray, limpiar `/tmp/ray` y `ray stop` en los nodos.
+
+6) Despliegue sugerido (opciones)
+- Systemd: crear un servicio que active el `venv` y lance `python server-gpu-ray.py`.
+- Docker: crear una imagen con `ffmpeg` y Python; exportar puertos y montar `uploads/`.
+
+7) Recursos y próximos pasos
+- Ver [README.md](README.md) para una visión general del proyecto.
+- Si quieres, puedo generar ejemplos de `systemd` unit file o un `Dockerfile`.
+
+
+# Video Optimizer - Comandos de Ejecución
+
+## 📦 INSTALACIÓN LOCAL
+
+# Crear entorno virtual
+python -m venv venv
+
+# Linux/Mac
+source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+## 🚀 COMANDOS CLI
+
+# Optimizar video básico
+python -m optimize_video -i inputs/el_cantico_final.mp4 -o ./outputs
+python -m optimize_video -i inputs/Projetc_2.mp4 -o ./outputs
+
+# Con GStreamer en Jetson
+python -m optimize_video -i inputs/el_cantico_final.mp4 -o outputs --backend gstreamer
+
+## 🌐 SERVIDORES WEB
+
+# Servidor básico
+python -m server
+
+# Servidor con GPU
+python -m server-gpu
+
+# Servidor con Ray
+python -m server-gpu-ray
+
+# Servidor Jetson
+python -m server-gpu-jetson
+
+# Por defecto en: http://localhost:5000
+
+## 🐳 DOCKER - CONSTRUCCIÓN
+
+# Imagen base
+docker build -t video-optimezer:latest .
+
+# Imagen CUDA
+docker build --no-cache -f Dockerfile.cuda -t video-optimezer:cuda .
+
+# Imagen Jetson
+docker build -f Dockerfile.jetson -t video-optimizer:jetson .
+
+## 🐳 DOCKER - EJECUCIÓN
+
+# Mostrar ayuda
+docker run --rm -it -v "$PWD/inputs":/app/inputs -v "$PWD/outputs":/app/outputs video-optimezer:latest -h
+
+# Optimizar video
+docker run --rm -it -v "$PWD/inputs":/app/inputs -v "$PWD/outputs":/app/outputs video-optimezer:latest -i /app/inputs/el_cantico_final.mp4 -o /app/outputs
+
+# Con CUDA (GPU)
+docker run --rm -it --gpus all -v "$PWD/inputs":/app/inputs -v "$PWD/outputs":/app/outputs video-optimezer:cuda -i /app/inputs/el_cantico_final.mp4 -o /app/outputs
+
+## 🐳 DOCKER - TAGGING Y PUSH
+
+# Tagging para Docker Hub
+docker tag video-optimezer:latest felixmurcia/video-optimezer:latest
+docker tag video-optimizer:jetson felixmurcia/video-optimizer:jetson
+docker tag video-optimizer:latest felixmurcia/video-optimizer:cuda
+
+# Subir a Docker Hub
+docker push felixmurcia/video-optimezer:latest
+docker push felixmurcia/video-optimizer:jetson
+docker push felixmurcia/video-optimizer:cuda
+
+# Descargar
+docker pull felixmurcia/video-optimizer:cuda
+docker pull felixmurcia/video-optimizer:jetson
+
+## 🔧 PRUEBAS JETSON
+
+# Pipeline GStreamer de prueba
+gst-launch-1.0 filesrc location=input.mp4 ! qtdemux ! h264parse ! nvv4l2h264enc ! qtmux ! filesink location=output.mp4
+
+# Script específico Jetson
+./run-jetson.sh ./inputs/el_cantico_final.mp4 ./outputs
+
+## 📁 ESTRUCTURA BÁSICA
+
+optimize_video.py      # CLI principal
+server.py              # Servidor básico
+server-gpu.py          # Servidor con GPU
+server-gpu-ray.py      # Servidor distribuido
+server-gpu-jetson.py   # Servidor Jetson (GStreamer)
+requirements.txt       # Dependencias Python
+Dockerfile            # Imagen base
+Dockerfile.cuda       # Imagen CUDA
+Dockerfile.jetson     # Imagen Jetson
+run-jetson.sh         # Script para Jetson
+run_video_optimizer.bat # Script Windows
+
+## ⚙️ OPCIONES CLI PRINCIPALES
+
+-i, --input         Archivo de video entrada (requerido)
+-o, --output        Directorio salida (requerido)
+--backend          Motor: auto/ffmpeg/gstreamer
+--reduce-bitrate   Bitrate reducción (ej: 2M)
+--opt-bitrate      Bitrate optimización (ej: 800k)
+--server           Ejecutar servidor web
+
+## 📋 BACKENDS DISPONIBLES
+
+auto       - Automático (GStreamer en Jetson, FFmpeg en otros)
+ffmpeg     - FFmpeg puro (CPU)
+gstreamer  - GStreamer (HW decode + SW encode)
+
+## 🖥️ PUERTOS SERVIDORES
+
+server              : Puerto 5000
+server-gpu          : Puerto 5000  
+server-gpu-ray      : Puerto 5000
+server-gpu-jetson   : Puerto 5001
+
+## 📝 EJEMPLOS COMPLETOS
+
+# 1. CLI básico
+python -m optimize_video -i inputs/video.mp4 -o outputs/ --reduce-bitrate 2M --opt-bitrate 800k
+
+# 2. Docker producción
+docker run --rm -d \
+  -v /data/inputs:/app/inputs \
+  -v /data/outputs:/app/outputs \
+  -p 5000:5000 \
+  video-optimizer:latest \
+  --server server-gpu
+
+# 3. Jetson local
+./run-jetson.sh ./inputs/mi_video.mp4 ./outputs
+
+# 4. Batch Windows
+run_video_optimizer.bat el_cantico_final.mp4 C:\Users\usuario\outputs
 
 Notas:
 - `--cq` controla la calidad para NVENC en el paso de optimización (valor más bajo = mejor calidad).
@@ -199,5 +410,4 @@ Notas:
 ![Ejecución](https://raw.githubusercontent.com/FelixMarin/video-optimizer/refs/heads/master/images/ejecucion.png)
 
 ## Log del proceso
-
 ![Logs del proceso](https://raw.githubusercontent.com/FelixMarin/video-optimizer/refs/heads/master/images/ejecucion2.png)
